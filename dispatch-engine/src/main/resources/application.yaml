@@ -13,15 +13,19 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
   kafka:
     consumer:
       bootstrap-servers: localhost:9092
       group-id: dispatch-processor-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        # Delegate the actual parsing back to the JsonDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: "com.vektor.dispatch_engine.*"
-        spring.json.value.default.type: com.vektor.dispatch_engine.DeliveryUpdate
+        spring.json.value.default.type: com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest
         spring.json.use.type.headers: false
