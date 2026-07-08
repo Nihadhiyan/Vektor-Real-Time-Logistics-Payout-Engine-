@@ -2,6 +2,7 @@ package com.vektor.dispatch_engine.config;
 
 import com.vektor.dispatch_engine.model.DeliveryEvent;
 import com.vektor.dispatch_engine.model.DriverPayout;
+import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class PayoutBatchConfig {
                 .name("deliveryEventReader")
                 .repository(deliveryEventRepository)
                 .methodName("findByProcessedFalseAndStatus")
-                .arguments(List.of("DELIVERED"))
+                .arguments(List.of(DeliveryEventStatus.DELIVERED))
                 .sorts(Map.of("receivedAt", Sort.Direction.ASC))
                 .pageSize(100)
                 .build();

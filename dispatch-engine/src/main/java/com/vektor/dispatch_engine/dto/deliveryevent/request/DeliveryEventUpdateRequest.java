@@ -1,11 +1,17 @@
 package com.vektor.dispatch_engine.dto.deliveryevent.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
+
+import java.time.Instant;
+import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DeliveryEventUpdateRequest(
+        UUID eventId,
         String driverId,
-        String status,
+        DeliveryEventStatus status,
         Double lat,
-        Double lng
+        Double lng,
+        Instant occurredAt
 ) {}

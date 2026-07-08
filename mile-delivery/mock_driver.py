@@ -1,12 +1,15 @@
+from datetime import datetime, timezone
 import time
 import json
 import random
+import uuid
 from kafka import KafkaProducer
 
 # Initialize connection to your local Kafka cluster
 producer = KafkaProducer(
     bootstrap_servers=['localhost:9092'],
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+    key_serializer=lambda k: k.encode('utf-8')
 )
 
 driver_id = "R-101"
@@ -27,14 +30,16 @@ try:
         status = "DELIVERED" if iteration % 10 == 0 else "EN_ROUTE"
         
         payload = {
+            "eventId": str(uuid.uuid4()),
             "driverId": driver_id,
             "status": status,
             "lat": round(lat, 4),
-            "lng": round(lng, 4)
+            "lng": round(lng, 4),
+            "occurredAt": datetime.now(timezone.utc).isoformat()
         }
         
         # Publish to the 'delivery-updates' topic
-        producer.send('delivery-updates', value=payload)
+        producer.send('delivery-updates', key=driver_id, value=payload)
         print(f"Sent: {payload}")
         
         iteration += 1

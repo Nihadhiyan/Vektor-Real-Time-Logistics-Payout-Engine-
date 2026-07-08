@@ -2,14 +2,24 @@ spring:
   application:
     name: dispatch-engine
 
+  batch:
+    jdbc:
+      initialize-schema: always
+
   datasource:
     url: jdbc:postgresql://localhost:5433/vektor
     username: vektor
     password: vektor
     driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true # Tells Flyway it's okay to start fresh
+    locations: classpath:db/migration
+
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:

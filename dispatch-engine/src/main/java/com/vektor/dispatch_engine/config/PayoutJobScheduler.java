@@ -9,8 +9,6 @@ import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.Properties;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
