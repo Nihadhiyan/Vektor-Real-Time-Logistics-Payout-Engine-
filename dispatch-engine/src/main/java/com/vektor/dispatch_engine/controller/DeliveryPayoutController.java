@@ -13,12 +13,10 @@ import com.vektor.dispatch_engine.dto.payout.response.DriverPayoutResponse;
 import com.vektor.dispatch_engine.service.DriverPayoutService;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/payouts")
 @RequiredArgsConstructor
-@Slf4j
 public class DeliveryPayoutController {
 
     private final DriverPayoutService driverPayoutService;

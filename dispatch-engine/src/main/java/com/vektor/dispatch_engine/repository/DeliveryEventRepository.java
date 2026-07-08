@@ -12,4 +12,6 @@ import java.util.UUID;
 @Repository
 public interface DeliveryEventRepository extends JpaRepository<DeliveryEvent, UUID> {
     Page<DeliveryEvent> findByProcessedFalseAndStatus(DeliveryEventStatus status, Pageable pageable);
+
+    Page<DeliveryEvent> findByProcessedFalseOrderByReceivedAtAsc(Pageable pageable);
 }
