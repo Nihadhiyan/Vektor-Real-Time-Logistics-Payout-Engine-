@@ -25,7 +25,10 @@ public class DeliveryEvent {
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     private UUID id;
 
+    @Column(name = "driver_id", nullable = false)
     private String driverId;
+
+    @Column(nullable = false)
     private String status;
     private Double lat;
     private Double lng;
