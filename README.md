@@ -1,25 +1,24 @@
-# Last-Mile Delivery & Payout Engine (Work in Progress)
+# Vektor Dispatch & Payout Engine
 
-A distributed backend pipeline designed to handle real-time logistics telemetry and batch-process daily driver payouts.
+A real-time, fault-tolerant financial settlement engine built for distributed logistics. 
 
-## System Architecture
+This project mimics a real-world enterprise logistics backend by separating high-velocity data ingestion from heavy financial processing. It ingests driver delivery telemetry via **Apache Kafka**, enforces database-level idempotency to prevent double-payments, and executes asynchronous financial settlements using **Spring Batch**. 
 
-This project mimics a real-world enterprise logistics backend by separating high-velocity data ingestion from heavy financial processing.
+## 🏗 Architecture
 
-- **Real-Time Stream:** Apache Kafka (KRaft mode) ingests continuous GPS and delivery status payloads from mobile clients.
-- **Batch Processing:** Spring Batch aggregates the day's event stream to calculate and generate driver payout statements.
-- **Infrastructure:** Dockerized local environment.
+```mermaid
+graph TD
+    subgraph Client
+        M[Python Mock Driver] -->|JSON Payload| K
+    end
 
-## Current Status: Active Development 🚧
-
-- [x] Infrastructure setup (Kafka / Docker Compose)
-- [x] Telemetry data simulator (Python Producer)
-- [ ] Spring Boot Kafka Consumer integration
-- [ ] Spring Batch job configuration for financial calculation
-
-## Tech Stack
-
-- **Java 17 / Spring Boot** (Spring for Apache Kafka, Spring Batch)
-- **Apache Kafka** (Message Broker)
-- **Python** (Mock Data Generation)
-- **Docker** (Containerization)
+    subgraph Docker Internal Network
+        K[Apache Kafka <br/>KRaft Mode] -->|DeliveryEventUpdateRequest| C
+        
+        subgraph Spring Boot Microservice
+            C[Kafka Consumer] -->|Idempotent Write| DB[(PostgreSQL)]
+            B[Spring Batch Job] -.->|Reads Unpaid| DB
+            B -->|Calculates $5.00 Payout| DB
+            API[REST Controller] -.->|Fetch Statements| DB
+        end
+    end
