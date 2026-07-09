@@ -4,18 +4,17 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
+import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "driver_payouts",
-        indexes = {
-                @Index(name = "idx_payout_driver", columnList = "driver_id"),
-                @Index(name = "idx_payout_status", columnList = "status")
-        }
-)
+@Table(name = "driver_payouts", indexes = {
+        @Index(name = "idx_payout_driver", columnList = "driver_id"),
+        @Index(name = "idx_payout_status", columnList = "status")
+})
 @Getter
 @Setter
 @ToString
@@ -39,9 +38,10 @@ public class DriverPayout {
     private Instant payoutCalculatedAt;
 
     @Column(nullable = false)
-    private String status = "PENDING"; // PENDING, PROCESSING, PAID
+    @Enumerated(EnumType.STRING)
+    private DriverPayoutStatus status = DriverPayoutStatus.PENDING;
 
-    public DriverPayout(String driverId, BigDecimal totalAmount,  int deliveriesProcessed) {
+    public DriverPayout(String driverId, BigDecimal totalAmount, int deliveriesProcessed) {
         this.driverId = driverId;
         this.totalAmount = totalAmount;
         this.deliveriesProcessed = deliveriesProcessed;

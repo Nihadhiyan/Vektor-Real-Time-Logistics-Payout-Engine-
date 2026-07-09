@@ -39,3 +39,7 @@ spring:
         spring.json.trusted.packages: "com.vektor.dispatch_engine.*"
         spring.json.value.default.type: com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest
         spring.json.use.type.headers: false
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
