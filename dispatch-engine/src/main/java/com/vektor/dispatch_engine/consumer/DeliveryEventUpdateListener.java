@@ -5,6 +5,9 @@ import com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateR
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Objects;
+
 import org.slf4j.MDC;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,7 +29,7 @@ public class DeliveryEventUpdateListener {
         MDC.put("driverId", driverLabel);
 
         try {
-            deliveryEventRepository.save(deliveryEventMapper.toDeliveryEvent(update));
+            deliveryEventRepository.save(Objects.requireNonNull(deliveryEventMapper.toDeliveryEvent(update)));
             log.info("Persisted event: eventId={} status={}", update.eventId(), update.status());
         } catch (DataIntegrityViolationException e) {
             log.warn("DUPLICATE BLOCKED: Event {} was already processed. Ignoring.", update.eventId());

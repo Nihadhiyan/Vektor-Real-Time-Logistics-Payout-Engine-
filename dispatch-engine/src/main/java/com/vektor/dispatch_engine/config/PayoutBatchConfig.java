@@ -1,23 +1,29 @@
 package com.vektor.dispatch_engine.config;
 
 import com.vektor.dispatch_engine.dto.common.AggregatedDelivery;
+import com.vektor.dispatch_engine.event.PayoutOutboxCreatedEvent;
 import com.vektor.dispatch_engine.model.DriverPayout;
+import com.vektor.dispatch_engine.model.PayoutOutbox;
+import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
+import com.vektor.dispatch_engine.repository.PayoutOutboxRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.infrastructure.item.ItemProcessor;
-import org.springframework.batch.infrastructure.item.ItemWriter;
-import org.springframework.batch.infrastructure.item.database.JdbcCursorItemReader;
-import org.springframework.batch.infrastructure.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.integration.async.AsyncItemProcessor;
 import org.springframework.batch.integration.async.AsyncItemWriter;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -25,6 +31,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.concurrent.Future;
 
 import javax.sql.DataSource;
@@ -34,6 +41,8 @@ import javax.sql.DataSource;
 public class PayoutBatchConfig {
     private final DeliveryEventRepository deliveryEventRepository;
     private final DriverPayoutRepository driverPayoutRepository;
+    private final PayoutOutboxRepository payoutOutboxRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final DataSource dataSource;
     private final PlatformTransactionManager transactionManager;
 
@@ -54,7 +63,7 @@ public class PayoutBatchConfig {
     public JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader() {
         return new JdbcCursorItemReaderBuilder<AggregatedDelivery>()
                 .name("deliveryEventReader")
-                .dataSource(dataSource)
+                .dataSource(Objects.requireNonNull(dataSource))
                 .sql("SELECT " +
                         "   e.driver_id, " +
                         "   COUNT(e.id) as delivery_count, " +
@@ -89,9 +98,9 @@ public class PayoutBatchConfig {
 
     @Bean
     public AsyncItemProcessor<AggregatedDelivery, DriverPayout> asyncProcessor() {
-        AsyncItemProcessor<AggregatedDelivery, DriverPayout> asyncItemProcessor = new AsyncItemProcessor<>(
-                driverPayoutProcessor());
-        asyncItemProcessor.setTaskExecutor(batchTaskExecutor());
+        AsyncItemProcessor<AggregatedDelivery, DriverPayout> asyncItemProcessor = new AsyncItemProcessor<>();
+        asyncItemProcessor.setDelegate(Objects.requireNonNull(driverPayoutProcessor()));
+        asyncItemProcessor.setTaskExecutor(Objects.requireNonNull(batchTaskExecutor()));
 
         return asyncItemProcessor;
     }
@@ -100,33 +109,42 @@ public class PayoutBatchConfig {
     public ItemWriter<DriverPayout> driverPayoutWriter() {
         return chunk -> {
             for (DriverPayout payout : chunk) {
-                driverPayoutRepository.save(payout);
+                driverPayoutRepository.save(Objects.requireNonNull(payout));
                 deliveryEventRepository.markAsProcessedForDriver(payout.getDriverId());
+
+                // === SAVE TO OUTBOX ===
+                PayoutOutbox outbox = new PayoutOutbox();
+                outbox.setDriverId(payout.getDriverId());
+                outbox.setTotalAmount(payout.getTotalAmount());
+                outbox.setStatus(DriverPayoutStatus.PENDING); // Ready for Dispatcher to send
+                payoutOutboxRepository.save(outbox);
+
+                eventPublisher.publishEvent(new PayoutOutboxCreatedEvent(this));
             }
         };
     }
 
     @Bean
     public AsyncItemWriter<DriverPayout> asyncWriter() {
-        AsyncItemWriter<DriverPayout> asyncItemWriter = new AsyncItemWriter<>(driverPayoutWriter());
+        AsyncItemWriter<DriverPayout> asyncItemWriter = new AsyncItemWriter<>();
+        asyncItemWriter.setDelegate(Objects.requireNonNull(driverPayoutWriter()));
         return asyncItemWriter;
     }
 
     @Bean
     public Step driverPayoutStep(JobRepository jobRepository) {
-        return new StepBuilder("driverPayoutStep", jobRepository)
-                .<AggregatedDelivery, Future<DriverPayout>>chunk(10)
-                .reader(deliveryEventReader())
-                .processor(asyncProcessor())
-                .writer(asyncWriter())
-                .transactionManager(transactionManager)
+        return new StepBuilder("driverPayoutStep", Objects.requireNonNull(jobRepository))
+                .<AggregatedDelivery, Future<DriverPayout>>chunk(10, Objects.requireNonNull(transactionManager))
+                .reader(Objects.requireNonNull(deliveryEventReader()))
+                .processor(Objects.requireNonNull(asyncProcessor()))
+                .writer(Objects.requireNonNull(asyncWriter()))
                 .build();
     }
 
     @Bean
     public Job driverPayoutJob(JobRepository jobRepository, Step driverPayoutStep) {
-        return new JobBuilder("driverPayoutJob", jobRepository)
-                .start(driverPayoutStep)
+        return new JobBuilder("driverPayoutJob", Objects.requireNonNull(jobRepository))
+                .start(Objects.requireNonNull(driverPayoutStep))
                 .build();
     }
 }

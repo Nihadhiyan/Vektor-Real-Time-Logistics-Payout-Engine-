@@ -1,9 +1,10 @@
 package com.vektor.dispatch_engine.model;
 
 import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
+import com.vektor.dispatch_engine.utils.UuidV7;
+
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,7 +21,7 @@ import java.util.UUID;
 public class DeliveryEvent {
 
         @Id
-        @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
+        @UuidV7
         private UUID id;
 
         @Column(nullable = false, unique = true)

@@ -2,9 +2,9 @@ package com.vektor.dispatch_engine.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
+import com.vektor.dispatch_engine.utils.UuidV7;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -22,7 +22,7 @@ import java.util.UUID;
 public class DriverPayout {
 
     @Id
-    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
+    @UuidV7
     private UUID id;
 
     @Column(name = "driver_id", nullable = false)

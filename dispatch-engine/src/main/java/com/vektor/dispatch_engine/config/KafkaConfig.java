@@ -1,5 +1,7 @@
 package com.vektor.dispatch_engine.config;
 
+import java.util.Objects;
+
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +15,9 @@ public class KafkaConfig {
 
     @Bean
     public DefaultErrorHandler errorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(Objects.requireNonNull(kafkaTemplate),
                 (record, ex) -> new TopicPartition(record.topic() + "-dlt", record.partition()));
 
-        return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3));
+        return new DefaultErrorHandler(Objects.requireNonNull(recoverer), new FixedBackOff(1000L, 3));
     }
 }
