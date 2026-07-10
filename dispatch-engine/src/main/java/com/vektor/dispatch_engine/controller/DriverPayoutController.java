@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/payouts")
 @RequiredArgsConstructor
-public class DeliveryPayoutController {
+public class DriverPayoutController {
 
     private final DriverPayoutService driverPayoutService;
 
@@ -31,5 +31,11 @@ public class DeliveryPayoutController {
     public ResponseEntity<List<DriverPayoutResponse>> getDriverPayouts(@PathVariable String driverId,
             Pageable pageable) {
         return ResponseEntity.ok(driverPayoutService.getDriverPayouts(driverId, pageable));
+    }
+
+    @GetMapping("/driver/{driverId}/status")
+    public ResponseEntity<String> getDriverStatus(@PathVariable String driverId) {
+        // Placeholder for future repository query
+        return ResponseEntity.ok("Status endpoint active for driver: " + driverId);
     }
 }
