@@ -31,14 +31,20 @@ try:
         # Every 10th ping, simulate a successful delivery
         status = "DELIVERED" if iteration % 10 == 0 else "EN_ROUTE"
         
-        payload = {
-            "eventId": str(uuid.uuid4()),
-            "driverId": driver_id,
-            "status": status,
-            "lat": round(lat, 4),
-            "lng": round(lng, 4),
-            "occurredAt": datetime.now(timezone.utc).isoformat()
-        }
+        if iteration % 15 == 0:
+            bad_payload = {"driverId": driver_id, "broken_json": "missing_fields", "lat": "THIS_WILL_CRASH_JAVA"}
+            producer.send('delivery-updates', key=driver_id, value=bad_payload)
+            print(f"Sent Poison Pill: {bad_payload}")
+        else: 
+            payload = {
+                "eventId": str(uuid.uuid4()),
+                "driverId": driver_id,
+                "status": status,
+                "lat": round(lat, 4),
+                "lng": round(lng, 4),
+                "distanceKm": round(random.uniform(1.2, 8.5), 2),
+                "occurredAt": datetime.now(timezone.utc).isoformat()
+            }
         
         # Publish to the 'delivery-updates' topic
         producer.send('delivery-updates', key=driver_id, value=payload)
@@ -50,29 +56,3 @@ try:
 except KeyboardInterrupt:
     print("\nSimulation stopped.")
     producer.close()
-
-
-
-# Maliciouse double attack test
-
-# print("Starting malicious mock driver (Duplicate Test)...")
-
-# duplicate_event_id = str(uuid.uuid4())
-
-# payload = {
-#     "eventId": duplicate_event_id,
-#     "driverId": driver_id,
-#     "status": "DELIVERED",
-#     "lat": lat,
-#     "lng": lng,
-#     "occurredAt": "2026-07-09T12:00:00Z"
-# }
-
-# print(f"Sending original event: {duplicate_event_id}")
-# producer.send('delivery-updates', value=payload)
-
-# print(f"Sending malicious duplicate: {duplicate_event_id}")
-# producer.send('delivery-updates', value=payload)
-
-# producer.flush()
-# print("Test complete. Shutting down.")
