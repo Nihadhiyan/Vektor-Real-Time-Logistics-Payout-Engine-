@@ -14,8 +14,15 @@ spring:
     password: vektor
     driver-class-name: org.postgresql.Driver
 
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
   flyway:
     enabled: true
+    out-of-order: false
     baseline-on-migrate: true # Tells Flyway it's okay to start fresh
     locations: classpath:db/migration
 
@@ -67,3 +74,12 @@ management:
     metrics:
       export:
         enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      bankGateway:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
