@@ -22,4 +22,6 @@ jobs:
         
     - name: Build and Test Dispatch Engine
       working-directory: ./dispatch-engine
-      run: ./mvnw clean verify -B
+      run: |
+        chmod +x ./mvnw
+        ./mvnw clean verify -B
