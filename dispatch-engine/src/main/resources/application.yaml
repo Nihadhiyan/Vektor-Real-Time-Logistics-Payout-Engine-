@@ -5,6 +5,8 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
+    job:
+      enabled: false
 
   datasource:
     url: jdbc:postgresql://localhost:5433/vektor
@@ -43,3 +45,25 @@ spring:
       bootstrap-servers: localhost:9092
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [Driver: %X{driverId}] %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - prometheus
+          - metrics
+
+  endpoint:
+    health:
+      show-details: always
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
