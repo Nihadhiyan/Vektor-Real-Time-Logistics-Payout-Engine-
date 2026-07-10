@@ -65,6 +65,10 @@ management:
           - info
           - prometheus
           - metrics
+  metrics:
+    tags:
+      application: dispatch-engine
+      
 
   endpoint:
     health:
