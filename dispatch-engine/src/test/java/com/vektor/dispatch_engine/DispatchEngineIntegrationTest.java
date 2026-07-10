@@ -13,7 +13,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest;
 import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
@@ -21,7 +20,7 @@ import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
 
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import static org.awaitility.Awaitility.await;
@@ -33,13 +32,13 @@ public class DispatchEngineIntegrationTest {
 
     @Container
     @SuppressWarnings("resource")
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16.0"))
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.0")
             .withDatabaseName("vektor_test")
             .withUsername("test")
             .withPassword("test");
 
     @Container
-    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
+    static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.7.0");
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -70,6 +69,7 @@ public class DispatchEngineIntegrationTest {
                 DeliveryEventStatus.DELIVERED,
                 6.820,
                 79.880,
+                5.5,
                 Instant.now());
 
         kafkaTemplate.send("delivery-updates", driverId, request);
@@ -83,7 +83,7 @@ public class DispatchEngineIntegrationTest {
             var payouts = driverPayoutRepository
                     .findByDriverIdOrderByPayoutCalculatedAtDesc(driverId, Pageable.ofSize(1)).toList();
             assertThat(payouts).isNotEmpty();
-            assertThat(payouts.get(0).getTotalAmount().doubleValue()).isEqualTo(5.00);
+            assertThat(payouts.get(0).getTotalAmount().doubleValue()).isEqualTo(9.6);
             assertThat(payouts.get(0).getStatus()).isEqualTo(DriverPayoutStatus.PENDING);
         });
     }
