@@ -8,10 +8,11 @@ import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DeliveryEventUpdateRequest(
-        UUID eventId,
-        String driverId,
-        DeliveryEventStatus status,
-        Double lat,
-        Double lng,
-        Instant occurredAt
-) {}
+                UUID eventId,
+                String driverId,
+                DeliveryEventStatus status,
+                Double lat,
+                Double lng,
+                Double distanceKm,
+                Instant occurredAt) {
+}
