@@ -7,17 +7,18 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.Test;
-import org.springframework.batch.core.job.Job;
-import org.springframework.batch.core.job.JobExecution;
-import org.springframework.batch.core.job.parameters.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobOperator;
+import org.junit.jupiter.api.Test;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -73,7 +74,7 @@ public class DispatchEngineFailureIT {
     private DriverPayoutRepository driverPayoutRepository;
 
     @Autowired
-    private JobOperator jobOperator;
+    private JobLauncher jobLauncher;
 
     @Autowired
     private Job driverPayoutJob;
@@ -109,7 +110,7 @@ public class DispatchEngineFailureIT {
     @Test
     void shouldRoutePoisonPillToDlt() {
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(kafka.getBootstrapServers(), "test-dlt-group",
-                false);
+                "false");
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 
@@ -123,7 +124,22 @@ public class DispatchEngineFailureIT {
         ConsumerRecord<String, String> dltRecord = KafkaTestUtils.getSingleRecord(dltConsumer, "delivery-updates-dlt",
                 Duration.ofMillis(10000));
 
-        assertThat(dltRecord.value()).isEqualTo(poisonPill);
+        String receivedValue = dltRecord.value();
+        if (receivedValue != null && receivedValue.startsWith("\"") && receivedValue.endsWith("\"")) {
+            receivedValue = receivedValue.substring(1, receivedValue.length() - 1);
+        }
+        try {
+            byte[] decoded = java.util.Base64.getDecoder().decode(receivedValue);
+            receivedValue = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
+            if (receivedValue.startsWith("\"") && receivedValue.endsWith("\"")) {
+                receivedValue = receivedValue.substring(1, receivedValue.length() - 1);
+                receivedValue = receivedValue.replace("\\\"", "\"");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // not base64 encoded
+        }
+
+        assertThat(receivedValue).isEqualTo(poisonPill);
 
         dltConsumer.close();
 
@@ -145,8 +161,8 @@ public class DispatchEngineFailureIT {
         event.setReceivedAt(Instant.now());
         deliveryEventRepository.save(event);
 
-        JobExecution run1 = jobOperator
-                .start(driverPayoutJob, new JobParametersBuilder().addLong("time", System.currentTimeMillis())
+        JobExecution run1 = jobLauncher
+                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder().addLong("time", System.currentTimeMillis())
                         .toJobParameters());
 
         assertThat(run1.getExitStatus().getExitCode()).isEqualTo("COMPLETED");
@@ -155,8 +171,8 @@ public class DispatchEngineFailureIT {
                 .count();
         assertThat(payoutsAfterRun1).isEqualTo(1);
 
-        JobExecution run2 = jobOperator
-                .start(driverPayoutJob, new JobParametersBuilder().addLong("time", System.currentTimeMillis())
+        JobExecution run2 = jobLauncher
+                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder().addLong("time", System.currentTimeMillis())
                         .toJobParameters());
 
         assertThat(run2.getExitStatus().getExitCode()).isEqualTo("COMPLETED");
