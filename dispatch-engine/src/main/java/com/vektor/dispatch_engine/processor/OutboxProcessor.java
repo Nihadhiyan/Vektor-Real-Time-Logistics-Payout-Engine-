@@ -9,6 +9,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.vektor.dispatch_engine.event.PayoutOutboxCreatedEvent;
+import com.vektor.dispatch_engine.exception.VektorBaseException;
 import com.vektor.dispatch_engine.gateway.BankGatewayService;
 import com.vektor.dispatch_engine.model.PayoutOutbox;
 import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
@@ -57,6 +58,9 @@ public class OutboxProcessor {
                     record.setStatus(DriverPayoutStatus.PAID);
                     record.setBankReferenceId(bankRef);
                 }
+            } catch (VektorBaseException e) {
+                log.warn("Vektor rule violation processing outbox record {} [errorCode={}]: {}", record.getOutboxId(), e.getErrorCode(), e.getMessage());
+                record.setStatus(DriverPayoutStatus.FAILED);
             } catch (Exception e) {
                 log.error("Failed to process outbox record {}: {}", record.getOutboxId(), e.getMessage());
                 record.setStatus(DriverPayoutStatus.FAILED);

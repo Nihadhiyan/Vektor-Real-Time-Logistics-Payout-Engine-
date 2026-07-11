@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 
+import com.vektor.dispatch_engine.exception.VektorBaseException;
 import org.slf4j.MDC;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,6 +34,8 @@ public class DeliveryEventUpdateListener {
             log.info("Persisted event: eventId={} status={}", update.eventId(), update.status());
         } catch (DataIntegrityViolationException e) {
             log.warn("DUPLICATE BLOCKED: Event {} was already processed. Ignoring.", update.eventId());
+        } catch (VektorBaseException e) {
+            log.warn("Vektor rule violation processing event [eventId={}, errorCode={}]: {}", update != null ? update.eventId() : "null", e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error processing event: ", e);
         } finally {

@@ -1,0 +1,12 @@
+package com.vektor.dispatch_engine.exception.enums;
+
+public enum ErrorCode {
+    DUPLICATE_COLUMN_NAMES,
+    DRIVER_NOT_FOUND,
+    INVALID_PAYOUT_AMOUNT,
+    VALIDATION_ERROR,
+    CONSTRAINT_VIOLATION,
+    DUPLICATE_DELIVERY_EVENT,
+    BANK_GATEWAY_ERROR,
+    SYSTEM_ERROR
+}
