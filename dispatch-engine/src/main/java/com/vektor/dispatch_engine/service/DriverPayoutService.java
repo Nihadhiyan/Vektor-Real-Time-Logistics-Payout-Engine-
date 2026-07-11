@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vektor.dispatch_engine.dto.payout.mapper.DriverPayoutMapper;
+import com.vektor.dispatch_engine.dto.payout.request.DriverPayoutRequest;
 import com.vektor.dispatch_engine.dto.payout.response.DriverPayoutResponse;
+import com.vektor.dispatch_engine.model.DriverPayout;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -49,6 +51,18 @@ public class DriverPayoutService {
             log.error("Failed to trigger manual batch settlement job", e);
             throw new RuntimeException("Failed to trigger batch settlement job: " + e.getMessage(), e);
         }
+    }
+
+    @Transactional
+    public DriverPayoutResponse calculatePayout(DriverPayoutRequest request) {
+        log.info("API Request received: Calculating payout for driver {} amount {}", request.driverId(), request.totalAmount());
+        var payout = new DriverPayout(
+                request.driverId(),
+                request.totalAmount(),
+                request.deliveriesProcessed()
+        );
+        var saved = driverPayoutRepository.save(payout);
+        return driverPayoutMapper.toDriverPayoutResponse(saved);
     }
 
 }
