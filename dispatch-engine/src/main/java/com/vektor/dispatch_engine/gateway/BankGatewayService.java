@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -20,7 +21,7 @@ public class BankGatewayService {
     }
 
     @CircuitBreaker(name = "bankGateway", fallbackMethod = "fallbackTransfer")
-    public String executeTransfer(String driverId, BigDecimal amount) {
+    public String executeTransfer(@NonNull String driverId, @NonNull BigDecimal amount) {
         log.info("Initiating bank transfer via external rails for Driver: {} | Amount: {}", driverId, amount);
 
         // return WebClient.post()
@@ -35,7 +36,7 @@ public class BankGatewayService {
 
     }
 
-    public String fallbackTransfer(String driverId, BigDecimal amount, Throwable t) {
+    public String fallbackTransfer(@NonNull String driverId, @NonNull BigDecimal amount, Throwable t) {
         log.error("Downstream Banking Rail unavailable. Circuit Breaker tripped for Driver: {}. Reason: {}",
                 driverId, t.getMessage());
         return "FAILED_SYSTEM_DOWN";
