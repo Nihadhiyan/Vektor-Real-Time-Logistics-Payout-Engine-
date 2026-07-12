@@ -50,7 +50,7 @@ public class DispatchEngineIntegrationTest {
     }
 
     @Autowired
-    private KafkaTemplate<String, DeliveryEventUpdateRequest> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private DeliveryEventRepository deliveryEventRepository;
