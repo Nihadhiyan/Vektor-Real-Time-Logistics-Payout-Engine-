@@ -29,7 +29,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         jdbc:
@@ -90,6 +90,13 @@ vektor:
     base-url: https://api.example-bank.com
   payout:
     schedule-ms: 60000
+    partition-count: 4
   outbox:
     stuck-threshold-minutes: 5
     sweep-ms: 60000
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG

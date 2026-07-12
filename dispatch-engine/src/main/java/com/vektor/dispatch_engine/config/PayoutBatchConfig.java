@@ -24,6 +24,8 @@ import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuild
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
@@ -44,7 +46,10 @@ public class PayoutBatchConfig {
 
     @Bean
     @StepScope
-    public JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader(@Value("#{jobParameters['cutoff']}") String cutoff) {
+    public JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader(
+        @Value("#{jobParameters['cutoff']}") String cutoff,
+        @Value("#{stepExecutionContext['bucket']}") Integer bucket,
+        @Value("#{stepExecutionContext['gridSize']}") Integer gridSize) {
 
         return new JdbcCursorItemReaderBuilder<AggregatedDelivery>()
                 .name("deliveryEventReader")
@@ -60,9 +65,14 @@ public class PayoutBatchConfig {
                     WHERE e.processed = false
                     AND e.status = 'DELIVERED'
                     AND e.received_at <= ?::timestamptz
+                    AND abs(hashtext(e.driver_id)) % ? = ?
                     GROUP BY e.driver_id, r.base_rate, r.per_km_rate
                     """)
-                .preparedStatementSetter((ps) -> ps.setString(1, cutoff))
+                .preparedStatementSetter((ps) -> {
+                    ps.setString(1, cutoff);
+                    ps.setInt(2, gridSize);
+                    ps.setInt(3, bucket);
+                    })
                 .rowMapper((rs, rowNum) -> new AggregatedDelivery(
                         rs.getString("driver_id"),
                         rs.getInt("delivery_count"),
@@ -115,8 +125,8 @@ public class PayoutBatchConfig {
     }
 
     @Bean
-    public Step driverPayoutStep(JobRepository jobRepository, JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader, ItemProcessor<AggregatedDelivery, DriverPayout> driverPayoutProcessor, ItemWriter<DriverPayout> driverPayoutWriter) {
-        return new StepBuilder("driverPayoutStep", Objects.requireNonNull(jobRepository))
+    public Step workerPayoutStep(JobRepository jobRepository, JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader, ItemProcessor<AggregatedDelivery, DriverPayout> driverPayoutProcessor, ItemWriter<DriverPayout> driverPayoutWriter) {
+        return new StepBuilder("workerPayoutStep", Objects.requireNonNull(jobRepository))
                 .<AggregatedDelivery, DriverPayout>chunk(10, Objects.requireNonNull(transactionManager))
                 .reader(Objects.requireNonNull(deliveryEventReader))
                 .processor(Objects.requireNonNull(driverPayoutProcessor))
@@ -125,9 +135,31 @@ public class PayoutBatchConfig {
     }
 
     @Bean
-    public Job driverPayoutJob(JobRepository jobRepository, Step driverPayoutStep) {
-        return new JobBuilder("driverPayoutJob", Objects.requireNonNull(jobRepository))
-                .start(Objects.requireNonNull(driverPayoutStep))
+    public Step masterPayoutStep(JobRepository jobRepository, Step workerPayoutStep, TaskExecutor partitionTaskExecutor, @Value("${vektor.payout.partition-count:4}") int gridSize) {
+
+        return new StepBuilder("masterPayoutStep", Objects.requireNonNull(jobRepository))
+                .partitioner("workerPayoutStep", new DriverBucketPartitioner())
+                .step(Objects.requireNonNull(workerPayoutStep))
+                .gridSize(gridSize)
+                .taskExecutor(Objects.requireNonNull(partitionTaskExecutor))
                 .build();
+    }
+
+    @Bean
+    public Job driverPayoutJob(JobRepository jobRepository, Step masterPayoutStep) {
+        return new JobBuilder("driverPayoutJob", Objects.requireNonNull(jobRepository))
+                .start(Objects.requireNonNull(masterPayoutStep))
+                .build();
+    }
+
+
+    @Bean
+    public TaskExecutor partitionTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(4);
+        executor.setThreadNamePrefix("payout-partition-");
+        executor.initialize();
+        return executor;
     }
 }
