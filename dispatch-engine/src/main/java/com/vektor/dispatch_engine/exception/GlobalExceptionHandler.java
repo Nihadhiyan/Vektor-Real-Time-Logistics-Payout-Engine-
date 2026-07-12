@@ -15,6 +15,8 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -165,6 +167,33 @@ public class GlobalExceptionHandler {
         problemDetail.setProperty("status", HttpStatus.NOT_FOUND.value());
         problemDetail.setProperty("error", ErrorCode.RESOURCE_NOT_FOUND);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+    }
+
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ResponseEntity<ProblemDetail> handleAccessDeniedException(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You do not have the required permissions to access this endpoint.");
+        problemDetail.setType(Objects.requireNonNull(URI.create("https://vektor.com/errors/access-denied")));
+        problemDetail.setProperty("timestamp", Instant.now().toString());
+        problemDetail.setProperty("status", HttpStatus.FORBIDDEN.value());
+        problemDetail.setProperty("error", ErrorCode.ACCESS_DENIED);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException ex) {
+        log.warn("Authentication failed or missing token: {}", ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Authentication required. Please provide a valid Bearer token.");
+        problemDetail.setType(Objects.requireNonNull(URI.create("https://vektor.com/errors/unauthorized")));
+        problemDetail.setProperty("timestamp", Instant.now().toString());
+        problemDetail.setProperty("status", HttpStatus.UNAUTHORIZED.value());
+        problemDetail.setProperty("error", ErrorCode.UNAUTHORIZED);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
     }
 
 
