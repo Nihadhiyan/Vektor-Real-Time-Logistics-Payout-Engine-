@@ -31,6 +31,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -61,6 +62,11 @@ public class DispatchEngineFailureIT {
     @Container
     static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.7.0");
 
+    @Container
+    @SuppressWarnings("resource")
+    static GenericContainer<?> redis = 
+        new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -68,6 +74,7 @@ public class DispatchEngineFailureIT {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.kafka.consumer.bootstrap-servers", kafka::getBootstrapServers);
         registry.add("spring.kafka.producer.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("vektor.redis.url", () -> "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
     }
 
     @Autowired

@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -52,6 +53,11 @@ class KeycloakSecurityIT {
     static KeycloakContainer keycloak = new KeycloakContainer("quay.io/keycloak/keycloak:26.0")
             .withCopyFileToContainer(MountableFile.forHostPath("keycloak/vektor-realm.json"), "/opt/keycloak/data/import/vektor-realm.json");
 
+    @Container
+    @SuppressWarnings("resource")
+    static GenericContainer<?> redis = 
+        new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -61,6 +67,7 @@ class KeycloakSecurityIT {
         registry.add("spring.kafka.producer.bootstrap-servers", kafka::getBootstrapServers);
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> 
             keycloak.getAuthServerUrl() + (keycloak.getAuthServerUrl().endsWith("/") ? "" : "/") + "realms/vektor");
+        registry.add("vektor.redis.url", () -> "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
     }
 
     @Autowired

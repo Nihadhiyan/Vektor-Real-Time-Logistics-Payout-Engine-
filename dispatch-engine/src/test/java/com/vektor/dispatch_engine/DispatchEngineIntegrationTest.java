@@ -53,6 +53,11 @@ public class DispatchEngineIntegrationTest {
     @Container
     static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.7.0");
 
+    @Container
+    @SuppressWarnings("resource")
+    static org.testcontainers.containers.GenericContainer<?> redis =
+        new org.testcontainers.containers.GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -60,6 +65,7 @@ public class DispatchEngineIntegrationTest {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.kafka.consumer.bootstrap-servers", kafka::getBootstrapServers);
         registry.add("spring.kafka.producer.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("vektor.redis.url", () -> "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
     }
 
     @Autowired
