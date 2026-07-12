@@ -5,7 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -22,8 +25,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vektor.dispatch_engine.config.SecurityConfig;
 import com.vektor.dispatch_engine.controller.DeliveryEventController;
 import com.vektor.dispatch_engine.controller.DriverPayoutController;
+import com.vektor.dispatch_engine.filter.IpRateLimitFilter;
+import com.vektor.dispatch_engine.filter.UserRateLimitFilter;
 import com.vektor.dispatch_engine.service.DeliveryEventService;
 import com.vektor.dispatch_engine.service.DriverPayoutService;
+
+import jakarta.servlet.FilterChain;
 
 @WebMvcTest({DriverPayoutController.class, DeliveryEventController.class, SecurityControllerTest.HealthStubController.class})
 @Import(SecurityConfig.class)
@@ -49,6 +56,27 @@ class SecurityControllerTest {
 
     @MockitoBean
     private DeliveryEventService deliveryEventService;
+
+    @MockitoBean
+    private IpRateLimitFilter ipRateLimitFilter;
+
+    @MockitoBean
+    private UserRateLimitFilter userRateLimitFilter;
+
+    @BeforeEach
+    void setupRateLimitFilters() throws Exception {
+        Mockito.doAnswer(invocation -> {
+            FilterChain chain = invocation.getArgument(2);
+            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(ipRateLimitFilter).doFilter(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+
+        Mockito.doAnswer(invocation -> {
+            FilterChain chain = invocation.getArgument(2);
+            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(userRateLimitFilter).doFilter(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
 
     @Test
     void triggerSettlement_requiresAdminRole() throws Exception {
