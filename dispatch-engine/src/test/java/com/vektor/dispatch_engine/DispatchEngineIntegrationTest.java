@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = { "vektor.payout.schedule-ms=2000", "vektor.outbox.sweep-ms=2000" })
 @Testcontainers
+@TestPropertySource(properties = "vektor.scheduling.enabled=true")
 public class DispatchEngineIntegrationTest {
 
     @Container
