@@ -38,21 +38,7 @@ public class KafkaConfig {
     @Bean
     @Primary
     public KafkaTemplate<String, Object> kafkaTemplate(@NonNull ProducerFactory<String, Object> producerFactory) {
-        Map<String, Object> props = new java.util.HashMap<>(producerFactory.getConfigurationProperties());
-        
-        org.apache.kafka.common.serialization.Serializer<Object> valueSerializer = (topic, data) -> {
-            if (data == null) return null;
-            if (data instanceof byte[] bytes) return bytes;
-            if (data instanceof String str) return str.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            try {
-                return new org.springframework.kafka.support.serializer.JsonSerializer<Object>().serialize(topic, data);
-            } catch (Exception e) {
-                throw new org.apache.kafka.common.errors.SerializationException("Error serializing payload", e);
-            }
-        };
-
-        DefaultKafkaProducerFactory<String, Object> pf = new DefaultKafkaProducerFactory<>(props, new org.apache.kafka.common.serialization.StringSerializer(), valueSerializer);
-        return new KafkaTemplate<>(pf);
+        return new KafkaTemplate<>(producerFactory);
     }
 
     @Bean
