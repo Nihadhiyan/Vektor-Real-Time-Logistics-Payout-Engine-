@@ -1,6 +1,7 @@
 package com.vektor.dispatch_engine.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.*;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -40,6 +41,7 @@ public class DriverPayout {
     private int deliveriesProcessed;
 
     @NonNull
+    @PastOrPresent
     private Instant payoutCalculatedAt;
 
     @Column(nullable = false)

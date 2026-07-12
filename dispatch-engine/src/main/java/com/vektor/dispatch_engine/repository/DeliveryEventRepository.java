@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +25,6 @@ public interface DeliveryEventRepository extends JpaRepository<DeliveryEvent, UU
 
     @Transactional
     @Modifying
-    @Query("UPDATE DeliveryEvent e SET e.processed = true WHERE e.driverId = :driverId AND e.status = 'DELIVERED' AND e.processed = false")
-    void markAsProcessedForDriver(@Param("driverId") String driverId);
+    @Query("UPDATE DeliveryEvent e SET e.processed = true WHERE e.driverId = :driverId AND e.status = 'DELIVERED' AND e.processed = false AND e.receivedAt  <= :cutoff")
+    int markAsProcessedForDriver(@Param("driverId") String driverId, @Param("cutoff") Instant cutoff);
 }

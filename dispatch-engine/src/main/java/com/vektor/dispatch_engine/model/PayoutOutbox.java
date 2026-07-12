@@ -1,6 +1,7 @@
 package com.vektor.dispatch_engine.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -37,6 +38,10 @@ public class PayoutOutbox {
     private DriverPayoutStatus status;
 
     private String bankReferenceId;
+
+    @PastOrPresent
+    @Column(nullable = false)
+    private Instant claimedAt;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();

@@ -4,6 +4,7 @@ import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
 import com.vektor.dispatch_engine.utils.UuidV7;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.*;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -47,10 +48,12 @@ public class DeliveryEvent {
         private Double distanceKm;
 
         @Column(nullable = false)
+        @PastOrPresent
         @NonNull
         private Instant receivedAt;
 
         @Column(nullable = false)
+        @PastOrPresent
         @NonNull
         private Instant occurredAt;
 
