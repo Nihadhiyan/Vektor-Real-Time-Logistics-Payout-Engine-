@@ -1,16 +1,25 @@
 package com.vektor.dispatch_engine.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
 @Configuration
 public class OpenAPIConfig {
+
+    @Bean
     public OpenAPI vektorOpenAPI() {
         return new OpenAPI()
+                .components(new Components().addSecuritySchemes("bearer",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList("bearer"))
                 .info(new Info()
                         .title("Vektor Dispatch & Payout Engine API")
                         .description("REST API for triggering manual financial settlements and querying driver payout statuses.")
