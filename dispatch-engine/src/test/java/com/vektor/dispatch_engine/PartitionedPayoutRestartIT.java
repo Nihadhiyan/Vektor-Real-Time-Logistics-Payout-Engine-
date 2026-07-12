@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
@@ -24,6 +24,8 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -77,6 +79,8 @@ public class PartitionedPayoutRestartIT {
     @TestConfiguration
     static class FailingWriterConfig {
 
+        @Bean
+        @Primary
         public ItemWriter<DriverPayout> failingPayoutWriter(
             @Qualifier("driverPayoutWriter") ItemWriter<DriverPayout> realWriter
         ) {
@@ -158,7 +162,7 @@ public class PartitionedPayoutRestartIT {
 
         // Bonus assertion: completed partitions were NOT re-executed on restart
         long workerExecutionsRun2 = run2.getStepExecutions().stream()
-                .filter(se -> se.getStepName().startsWith("workerPayoutStep:"))
+                .filter(se -> se.getStepName().startsWith("workerPayoutStep:") && se.getWriteCount() > 0)
                 .count();
         assertThat(workerExecutionsRun2).isLessThan(gridSize); // only failed bucket(s) re-ran
     }

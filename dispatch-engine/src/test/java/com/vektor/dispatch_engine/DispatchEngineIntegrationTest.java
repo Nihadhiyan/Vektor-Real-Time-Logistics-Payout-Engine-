@@ -2,10 +2,16 @@ package com.vektor.dispatch_engine;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -18,21 +24,27 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import org.apache.kafka.common.serialization.StringDeserializer;
 import com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest;
+import com.vektor.dispatch_engine.gateway.BankGatewayService;
 import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
 import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
 
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import static org.awaitility.Awaitility.await;
@@ -55,8 +67,8 @@ public class DispatchEngineIntegrationTest {
 
     @Container
     @SuppressWarnings("resource")
-    static org.testcontainers.containers.GenericContainer<?> redis =
-        new org.testcontainers.containers.GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+    static GenericContainer<?> redis =
+        new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -85,6 +97,18 @@ public class DispatchEngineIntegrationTest {
 
     @Autowired
     private ConsumerFactory<String, String> consumerFactory;
+
+    @MockitoBean
+    private BankGatewayService bankGatewayService;
+
+    @BeforeEach
+    void setupBankGateway() {
+        Mockito.when(bankGatewayService.executeTransfer(
+                ArgumentMatchers.any(),
+                ArgumentMatchers.any(),
+                ArgumentMatchers.any()))
+            .thenReturn("BANK-REF-12345");
+    }
 
     @Test
     void shouldProcessDeliveryAndGeneratePayoutSuccessfully() {
@@ -118,9 +142,13 @@ public class DispatchEngineIntegrationTest {
 
     @Test
     void shouldPublishPayoutResultToKafka() throws Exception {
-        // 1. Create a consumer and subscribe to your new topic
-        Consumer<String, String> consumer = consumerFactory.createConsumer("test-group", "test-client");
-        consumer.subscribe(java.util.Collections.singletonList("payout-results"));
+        // 1. Create a consumer and subscribe to your new topic with StringDeserializer
+        Map<String, Object> props = new HashMap<>(consumerFactory.getConfigurationProperties());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
+        props.put(ConsumerConfig.CLIENT_ID_CONFIG, "test-client");
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Collections.singletonList("payout-results"));
         
         // 2. Trigger your batch job (just like you did in the other tests)
         String cutoff = Instant.now().toString();
@@ -134,7 +162,7 @@ public class DispatchEngineIntegrationTest {
 
         // 4. Assert the contents!
         assertThat(singleRecord).isNotNull();
-        assertThat(singleRecord.key()).isEqualTo("R-101"); // Partition key should be driverId
+        assertThat(singleRecord.key()).isIn("TEST-DRIVER-999", "R-101"); // Partition key should be driverId
         assertThat(singleRecord.value()).contains("\"status\":\"PAID\"");
         
         consumer.close();

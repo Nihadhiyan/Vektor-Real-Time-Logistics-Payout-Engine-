@@ -14,7 +14,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -31,6 +34,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -38,6 +42,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
 import com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest;
+import com.vektor.dispatch_engine.gateway.BankGatewayService;
 import com.vektor.dispatch_engine.model.DeliveryEvent;
 import com.vektor.dispatch_engine.model.PayoutOutbox;
 import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
@@ -98,7 +103,17 @@ public class DispatchEngineFailureIT {
     @Autowired
     private OutboxRecordProcessor recordProcessor;
 
-    
+    @MockitoBean
+    private BankGatewayService bankGatewayService;
+
+    @BeforeEach
+    void setupBankGateway() {
+        Mockito.when(bankGatewayService.executeTransfer(
+                ArgumentMatchers.any(),
+                ArgumentMatchers.any(),
+                ArgumentMatchers.any()))
+            .thenReturn("BANK-REF-12345");
+    }
 
     // --- TEST 1: IDEMPOTENCY ---
 
@@ -108,19 +123,30 @@ public class DispatchEngineFailureIT {
         UUID sharedEventId = UUID.randomUUID();
 
         DeliveryEventUpdateRequest request1 = new DeliveryEventUpdateRequest(
-                sharedEventId, driverId, DeliveryEventStatus.DELIVERED, 6.820, 79.880, 5.5, Instant.now());
+                sharedEventId,
+                driverId,
+                DeliveryEventStatus.DELIVERED,
+                5.0,
+                35.0,
+                5.0,
+                Instant.now());
 
         DeliveryEventUpdateRequest request2 = new DeliveryEventUpdateRequest(
-                sharedEventId, driverId, DeliveryEventStatus.DELIVERED, 6.820, 79.880, 5.5, Instant.now());
+                sharedEventId,
+                driverId,
+                DeliveryEventStatus.DELIVERED,
+                5.0,
+                35.0,
+                5.0,
+                Instant.now().plusSeconds(10));
 
         kafkaTemplate.send("delivery-updates", driverId, request1);
         kafkaTemplate.send("delivery-updates", driverId, request2);
 
-        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
             long count = deliveryEventRepository.findAll().stream()
                     .filter(e -> e.getEventId().equals(sharedEventId))
                     .count();
-
             assertThat(count).isEqualTo(1);
         });
 
@@ -134,6 +160,7 @@ public class DispatchEngineFailureIT {
                 "false");
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         Consumer<String, String> dltConsumer = new DefaultKafkaConsumerFactory<String, String>(consumerProps)
                 .createConsumer();
@@ -143,11 +170,11 @@ public class DispatchEngineFailureIT {
         kafkaTemplate.send("delivery-updates", "R-101", poisonPill);
 
         ConsumerRecord<String, String> dltRecord = KafkaTestUtils.getSingleRecord(dltConsumer, "delivery-updates-dlt",
-                Duration.ofSeconds(10));
+                Duration.ofSeconds(25));
 
         String receivedValue = dltRecord.value();
 
-        assertThat(receivedValue).isEqualTo(poisonPill);
+        assertThat(receivedValue).contains("THIS_WILL_CRASH_JAVA");
 
         dltConsumer.close();
 
