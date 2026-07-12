@@ -39,7 +39,18 @@ services:
       timeout: 5s
       retries: 5
 
-  dispatch-engine: 
+  redis:
+    image: redis:7-alpine
+    container_name: vektor-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  dispatch-engine:
     build: .
     container_name: vektor-engine
     depends_on:

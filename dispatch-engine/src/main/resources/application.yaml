@@ -94,6 +94,8 @@ resilience4j:
 vektor:
   bank:
     base-url: ${VEKTOR_BANK_BASE_URL:http://localhost:8085}
+  redis:
+    url: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
   payout:
     schedule-ms: 60000
     partition-count: 4

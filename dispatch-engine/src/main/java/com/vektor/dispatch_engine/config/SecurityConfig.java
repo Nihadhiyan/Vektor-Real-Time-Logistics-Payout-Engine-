@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -17,6 +18,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
+
+import com.vektor.dispatch_engine.filter.IpRateLimitFilter;
+import com.vektor.dispatch_engine.filter.UserRateLimitFilter;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -29,7 +34,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 public class SecurityConfig {
     
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           IpRateLimitFilter ipRateLimitFilter,
+                                           UserRateLimitFilter userRateLimitFilter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -40,7 +47,9 @@ public class SecurityConfig {
                 .anyRequest().denyAll() )
             .oauth2ResourceServer(oauth -> oauth
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakRealmRoleConverter()))
-            );
+            )
+            .addFilterBefore(ipRateLimitFilter, BearerTokenAuthenticationFilter.class)
+            .addFilterAfter(userRateLimitFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
             
