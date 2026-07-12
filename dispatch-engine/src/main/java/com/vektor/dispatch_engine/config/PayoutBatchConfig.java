@@ -10,7 +10,7 @@ import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
 import com.vektor.dispatch_engine.repository.PayoutOutboxRepository;
 
 import lombok.RequiredArgsConstructor;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -21,18 +21,14 @@ import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
-import org.springframework.batch.integration.async.AsyncItemProcessor;
-import org.springframework.batch.integration.async.AsyncItemWriter;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.TaskExecutor;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Objects;
-import java.util.concurrent.Future;
 
 import javax.sql.DataSource;
 
@@ -47,33 +43,26 @@ public class PayoutBatchConfig {
     private final PlatformTransactionManager transactionManager;
 
     @Bean
-    public TaskExecutor batchTaskExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("Payout-Worker-");
-        executor.initialize();
-
-        return executor;
-    }
-
-    @Bean
     @StepScope
-    public JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader() {
+    public JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader(@Value("#{jobParameters['cutoff']}") String cutoff) {
+
         return new JdbcCursorItemReaderBuilder<AggregatedDelivery>()
                 .name("deliveryEventReader")
                 .dataSource(Objects.requireNonNull(dataSource))
-                .sql("SELECT " +
-                        "   e.driver_id, " +
-                        "   COUNT(e.id) as delivery_count, " +
-                        "   SUM(e.distance_km) as total_distance, " +
-                        "   COALESCE(r.base_rate, 5.00) as base_rate, " +
-                        "   COALESCE(r.per_km_rate, 1.50) as per_km_rate " +
-                        "FROM delivery_events e " +
-                        "LEFT JOIN driver_rate_cards r ON e.driver_id = r.driver_id " +
-                        "WHERE e.processed = false AND e.status = 'DELIVERED' " +
-                        "GROUP BY e.driver_id, r.base_rate, r.per_km_rate")
+                .sql("""
+                    SELECT e.driver_id,
+                        COUNT(e.id) AS delivery_count,
+                        SUM(e.distance_km) AS total_distance,
+                        COALESCE(r.base_rate, 5.00) AS base_rate,
+                        COALESCE(r.per_km_rate, 1.50) AS per_km_rate
+                    FROM delivery_events e
+                    LEFT JOIN driver_rate_cards r ON e.driver_id = r.driver_id
+                    WHERE e.processed = false
+                    AND e.status = 'DELIVERED'
+                    AND e.received_at <= ?::timestamptz
+                    GROUP BY e.driver_id, r.base_rate, r.per_km_rate
+                    """)
+                .preparedStatementSetter((ps) -> ps.setString(1, cutoff))
                 .rowMapper((rs, rowNum) -> new AggregatedDelivery(
                         rs.getString("driver_id"),
                         rs.getInt("delivery_count"),
@@ -89,7 +78,7 @@ public class PayoutBatchConfig {
 
             // Math: (Base Rate * Count) + (Total Distance * Per-Km Rate)
 
-            BigDecimal baseTotal = aggregatedDelivery.baseRate().multiply(new BigDecimal(aggregatedDelivery.count()));
+            BigDecimal baseTotal = aggregatedDelivery.baseRate().multiply(BigDecimal.valueOf(aggregatedDelivery.count()));
             BigDecimal distanceTotal = aggregatedDelivery.totalDistance().multiply(aggregatedDelivery.perKmRate());
             BigDecimal grandTotal = baseTotal.add(distanceTotal);
             return new DriverPayout(aggregatedDelivery.driverId(), grandTotal, aggregatedDelivery.count());
@@ -97,20 +86,21 @@ public class PayoutBatchConfig {
     }
 
     @Bean
-    public AsyncItemProcessor<AggregatedDelivery, DriverPayout> asyncProcessor() {
-        AsyncItemProcessor<AggregatedDelivery, DriverPayout> asyncItemProcessor = new AsyncItemProcessor<>();
-        asyncItemProcessor.setDelegate(Objects.requireNonNull(driverPayoutProcessor()));
-        asyncItemProcessor.setTaskExecutor(Objects.requireNonNull(batchTaskExecutor()));
+    @StepScope
+    public ItemWriter<DriverPayout> driverPayoutWriter(@Value("#{jobParameters['cutoff']}") String cutoff) {
 
-        return asyncItemProcessor;
-    }
+        Instant cutoffInstant = Instant.parse(cutoff);
 
-    @Bean
-    public ItemWriter<DriverPayout> driverPayoutWriter() {
         return chunk -> {
             for (DriverPayout payout : chunk) {
                 driverPayoutRepository.save(Objects.requireNonNull(payout));
-                deliveryEventRepository.markAsProcessedForDriver(payout.getDriverId());
+                int updated = deliveryEventRepository.markAsProcessedForDriver(payout.getDriverId(), cutoffInstant);
+
+                if (updated != payout.getDeliveriesProcessed()) {
+                    throw new IllegalStateException(
+                        "Settlement invariant violated for driver %s: paid %d deliveries but marked %d as processed"
+                            .formatted(payout.getDriverId(), payout.getDeliveriesProcessed(), updated));
+                }
 
                 // === SAVE TO OUTBOX ===
                 PayoutOutbox outbox = new PayoutOutbox();
@@ -118,26 +108,19 @@ public class PayoutBatchConfig {
                 outbox.setTotalAmount(payout.getTotalAmount());
                 outbox.setStatus(DriverPayoutStatus.PENDING); // Ready for Dispatcher to send
                 payoutOutboxRepository.save(outbox);
-
-                eventPublisher.publishEvent(new PayoutOutboxCreatedEvent(this));
             }
+
+            eventPublisher.publishEvent(new PayoutOutboxCreatedEvent(this));
         };
     }
 
     @Bean
-    public AsyncItemWriter<DriverPayout> asyncWriter() {
-        AsyncItemWriter<DriverPayout> asyncItemWriter = new AsyncItemWriter<>();
-        asyncItemWriter.setDelegate(Objects.requireNonNull(driverPayoutWriter()));
-        return asyncItemWriter;
-    }
-
-    @Bean
-    public Step driverPayoutStep(JobRepository jobRepository) {
+    public Step driverPayoutStep(JobRepository jobRepository, JdbcCursorItemReader<AggregatedDelivery> deliveryEventReader, ItemProcessor<AggregatedDelivery, DriverPayout> driverPayoutProcessor, ItemWriter<DriverPayout> driverPayoutWriter) {
         return new StepBuilder("driverPayoutStep", Objects.requireNonNull(jobRepository))
-                .<AggregatedDelivery, Future<DriverPayout>>chunk(10, Objects.requireNonNull(transactionManager))
-                .reader(Objects.requireNonNull(deliveryEventReader()))
-                .processor(Objects.requireNonNull(asyncProcessor()))
-                .writer(Objects.requireNonNull(asyncWriter()))
+                .<AggregatedDelivery, DriverPayout>chunk(10, Objects.requireNonNull(transactionManager))
+                .reader(Objects.requireNonNull(deliveryEventReader))
+                .processor(Objects.requireNonNull(driverPayoutProcessor))
+                .writer(Objects.requireNonNull(driverPayoutWriter))
                 .build();
     }
 

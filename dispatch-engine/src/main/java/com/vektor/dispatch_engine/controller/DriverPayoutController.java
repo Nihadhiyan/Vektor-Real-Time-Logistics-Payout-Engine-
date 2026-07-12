@@ -8,15 +8,13 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import com.vektor.dispatch_engine.dto.payout.request.DriverPayoutRequest;
 import com.vektor.dispatch_engine.dto.payout.response.DriverPayoutResponse;
+import com.vektor.dispatch_engine.dto.payout.response.SettlementTriggerResponse;
 import com.vektor.dispatch_engine.service.DriverPayoutService;
 
 import lombok.RequiredArgsConstructor;
@@ -30,13 +28,8 @@ public class DriverPayoutController {
     private final DriverPayoutService driverPayoutService;
 
     @PostMapping("/trigger-settlement")
-    public ResponseEntity<String> triggerSettlement(@Valid @RequestBody DriverPayoutRequest request) {
+    public ResponseEntity<SettlementTriggerResponse> triggerSettlement() {
         return ResponseEntity.ok(driverPayoutService.triggerSettlement());
-    }
-
-    @PostMapping("/calculate")
-    public ResponseEntity<DriverPayoutResponse> calculatePayout(@Valid @RequestBody DriverPayoutRequest request) {
-        return ResponseEntity.ok(driverPayoutService.calculatePayout(request));
     }
 
     @GetMapping("/{driverId}")

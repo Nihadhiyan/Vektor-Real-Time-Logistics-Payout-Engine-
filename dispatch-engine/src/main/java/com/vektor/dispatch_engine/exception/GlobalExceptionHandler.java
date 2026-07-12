@@ -137,7 +137,7 @@ public class GlobalExceptionHandler {
         problemDetail.setType(Objects.requireNonNull(URI.create("https://vektor.com/errors/method-not-allowed")));
         problemDetail.setProperty("timestamp", Instant.now().toString());
         problemDetail.setProperty("status", HttpStatus.METHOD_NOT_ALLOWED.value());
-        problemDetail.setProperty("error", ErrorCode.VALIDATION_ERROR);
+        problemDetail.setProperty("error", ErrorCode.UNSUPPORTED_OPERATION);
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(problemDetail);
     }
 
@@ -150,7 +150,7 @@ public class GlobalExceptionHandler {
         problemDetail.setType(Objects.requireNonNull(URI.create("https://vektor.com/errors/unsupported-media-type")));
         problemDetail.setProperty("timestamp", Instant.now().toString());
         problemDetail.setProperty("status", HttpStatus.UNSUPPORTED_MEDIA_TYPE.value());
-        problemDetail.setProperty("error", ErrorCode.VALIDATION_ERROR);
+        problemDetail.setProperty("error", ErrorCode.UNSUPPORTED_OPERATION);
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(problemDetail);
     }
 
@@ -163,7 +163,7 @@ public class GlobalExceptionHandler {
         problemDetail.setType(Objects.requireNonNull(URI.create("https://vektor.com/errors/resource-not-found")));
         problemDetail.setProperty("timestamp", Instant.now().toString());
         problemDetail.setProperty("status", HttpStatus.NOT_FOUND.value());
-        problemDetail.setProperty("error", ErrorCode.DRIVER_NOT_FOUND);
+        problemDetail.setProperty("error", ErrorCode.RESOURCE_NOT_FOUND);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
@@ -180,4 +180,6 @@ public class GlobalExceptionHandler {
         problemDetail.setProperty("error", ErrorCode.SYSTEM_ERROR);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
     }
+
+    
 }

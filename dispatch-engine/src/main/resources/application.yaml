@@ -52,9 +52,6 @@ spring:
       bootstrap-servers: localhost:9092
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-logging:
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [Driver: %X{driverId}] %msg%n"
 
 management:
   endpoints:
@@ -87,3 +84,12 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
+
+vektor:
+  bank:
+    base-url: https://api.example-bank.com
+  payout:
+    schedule-ms: 60000
+  outbox:
+    stuck-threshold-minutes: 5
+    sweep-ms: 60000

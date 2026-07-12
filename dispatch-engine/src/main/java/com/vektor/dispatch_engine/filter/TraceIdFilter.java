@@ -2,7 +2,7 @@ package com.vektor.dispatch_engine.filter;
 
 import java.io.IOException;
 
-import org.jboss.logging.MDC;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -24,18 +24,16 @@ public class TraceIdFilter extends OncePerRequestFilter {
         
         if (traceId == null || traceId.isEmpty()) {
             traceId = UuidCreator.getTimeOrderedEpoch().toString();
+        }
 
-            MDC.put(MDC_TRACE_ID_KEY, traceId);
+        MDC.put(MDC_TRACE_ID_KEY, traceId);
 
-            response.addHeader(TRACE_ID_HEADER, traceId);
+        response.addHeader(TRACE_ID_HEADER, traceId);
 
-            try {
-                filterChain.doFilter(request, response);
-            } finally {
-                MDC.remove(MDC_TRACE_ID_KEY);
-            }
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(MDC_TRACE_ID_KEY);
         }
     }
-
-    
 }
