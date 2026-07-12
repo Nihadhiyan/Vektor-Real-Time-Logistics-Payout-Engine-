@@ -47,6 +47,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -55,6 +57,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=vektor
       - SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/vektor
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 10s
@@ -103,6 +106,16 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-    
-    
+  
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: vektor-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8081:8080"
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    volumes:
+      - ./keycloak/vektor-realm.json:/opt/keycloak/data/import/vektor-realm.json
       

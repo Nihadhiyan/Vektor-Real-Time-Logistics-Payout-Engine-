@@ -1,0 +1,46 @@
+{
+  "realm": "vektor",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "payout_read",  "description": "Query payout statements and unpaid deliveries" },
+      { "name": "payout_admin", "description": "Trigger settlements, retry failed disbursements" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "vektor-api",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "vektor-api-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "ops-admin",
+      "enabled": true,
+      "email": "ops-admin@vektor.com",
+      "firstName": "Ops",
+      "lastName": "Admin",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
+      "realmRoles": ["payout_read", "payout_admin"]
+    },
+    {
+      "username": "driver-portal",
+      "enabled": true,
+      "email": "driver-portal@vektor.com",
+      "firstName": "Driver",
+      "lastName": "Portal",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "portal123", "temporary": false }],
+      "realmRoles": ["payout_read"]
+    }
+  ]
+}
