@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,7 @@ public class DriverPayoutController {
         @ApiResponse(responseCode = "500", description = "Job launch failure", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         
     })
+    @PreAuthorize("hasRole('payout_admin')")
     @PostMapping("/trigger-settlement")
     public ResponseEntity<SettlementTriggerResponse> triggerSettlement() {
         return ResponseEntity.ok(driverPayoutService.triggerSettlement());
@@ -49,6 +51,7 @@ public class DriverPayoutController {
         @ApiResponse(responseCode = "200", description = "Payout statements, newest first"),
         @ApiResponse(responseCode = "400", description = "Invalid driver ID", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
+    @PreAuthorize("hasRole('payout_read')")
     @GetMapping("/{driverId}")
     public ResponseEntity<List<DriverPayoutResponse>> getDriverPayouts(
             @PathVariable @NotBlank(message = "Driver ID cannot be blank") @Size(min = 2, max = 64, message = "Driver ID must be between 2 and 64 characters") String driverId,
@@ -56,6 +59,7 @@ public class DriverPayoutController {
         return ResponseEntity.ok(driverPayoutService.getDriverPayouts(driverId, pageable));
     }
 
+    @PreAuthorize("hasRole('payout_read')")
     @GetMapping("/driver/{driverId}/status")
     public ResponseEntity<String> getDriverStatus(
             @PathVariable @NotBlank(message = "Driver ID cannot be blank") @Size(min = 2, max = 64, message = "Driver ID must be between 2 and 64 characters") String driverId) {
