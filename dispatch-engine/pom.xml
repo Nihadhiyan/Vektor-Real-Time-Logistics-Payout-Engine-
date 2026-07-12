@@ -158,6 +158,12 @@
           <version>${testcontainers.version}</version>
           <scope>test</scope>
        </dependency>
+       <dependency>
+          <groupId>com.github.dasniko</groupId>
+          <artifactId>testcontainers-keycloak</artifactId>
+          <version>3.6.0</version>
+          <scope>test</scope>
+       </dependency>
 
        <dependency>
           <groupId>org.awaitility</groupId>
@@ -174,6 +180,21 @@
 			<groupId>net.logstash.logback</groupId>
 			<artifactId>logstash-logback-encoder</artifactId>
 			<version>7.4</version>
+		</dependency>
+		<!-- OAuth2 Resource Server -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+		<!-- Security - Required for OAuth2 Resource Server configuration -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
