@@ -163,7 +163,9 @@ public class DispatchEngineFailureIT {
         deliveryEventRepository.save(event);
 
         JobExecution run1 = jobLauncher
-                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder().addLong("time", System.currentTimeMillis())
+                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder()
+                        .addString("cutoff", Instant.now().toString())
+                        .addLong("time", System.currentTimeMillis())
                         .toJobParameters());
 
         assertThat(run1.getExitStatus().getExitCode()).isEqualTo("COMPLETED");
@@ -173,7 +175,9 @@ public class DispatchEngineFailureIT {
         assertThat(payoutsAfterRun1).isEqualTo(1);
 
         JobExecution run2 = jobLauncher
-                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder().addLong("time", System.currentTimeMillis())
+                .run(Objects.requireNonNull(driverPayoutJob), new JobParametersBuilder()
+                        .addString("cutoff", Instant.now().toString())
+                        .addLong("time", System.currentTimeMillis())
                         .toJobParameters());
 
         assertThat(run2.getExitStatus().getExitCode()).isEqualTo("COMPLETED");
