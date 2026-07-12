@@ -35,7 +35,6 @@ public class PayoutJobScheduler {
             jobLauncher.run(Objects.requireNonNull(driverPayoutJob), jobParameters);
 
             log.info("Job finished successfully");
-            System.out.println("BATCH JOB TRIGGERED: Checking for unpaid deliveries...");
         } catch (JobInstanceAlreadyCompleteException e) {
             log.info("Settlement for this cutoff already completed: {}", e.getMessage());
         } catch (JobExecutionAlreadyRunningException e) {
