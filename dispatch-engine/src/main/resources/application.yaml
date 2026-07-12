@@ -65,7 +65,6 @@ management:
   metrics:
     tags:
       application: dispatch-engine
-      
 
   endpoint:
     health:
@@ -80,14 +79,21 @@ resilience4j:
   circuitbreaker:
     instances:
       bankGateway:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 5 # Look at the last 5 calls
+        failure-rate-threshold: 50 # If 50% (or more) fail, trip the breaker!
+        wait-duration-in-open-state: 15s # Wait 15 seconds before trying the bank again
+        permitted-number-of-calls-in-half-open-state: 2 # Try 2 times before giving up
+        minimum-number-of-calls: 3 # Minimum number of calls to trip the breaker
+  ratelimiter:
+    instances:
+      bankGateway:
+        limit-for-period: 10 # Allow max 10 calls per refresh period
+        limit-refresh-period: 1s # Refresh permissions every 1 second
+        timeout-duration: 0s # If no permissions available immediately, throw RequestNotPermitted without waiting
 
 vektor:
   bank:
-    base-url: https://api.example-bank.com
+    base-url: ${VEKTOR_BANK_BASE_URL:http://localhost:8085}
   payout:
     schedule-ms: 60000
     partition-count: 4
@@ -95,7 +101,7 @@ vektor:
     stuck-threshold-minutes: 5
     sweep-ms: 60000
   scheduling:
-    enabled: false
+    enabled: true
 
 logging:
   level:
