@@ -94,6 +94,8 @@ vektor:
   outbox:
     stuck-threshold-minutes: 5
     sweep-ms: 60000
+  scheduling:
+    enabled: false
 
 logging:
   level:
