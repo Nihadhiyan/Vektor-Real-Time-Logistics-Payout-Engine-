@@ -20,6 +20,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 
 @Configuration
@@ -46,6 +47,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "spring.security.oauth2.resourceserver.jwt.issuer-uri", matchIfMissing = true, havingValue = "false")
     @ConditionalOnMissingBean(JwtDecoder.class)
     public JwtDecoder fallbackJwtDecoder() {
         return token -> {
