@@ -26,7 +26,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = { "vektor.payout.schedule-ms=2000", "vektor.outbox.sweep-ms=2000" })
 @Testcontainers
 public class DispatchEngineIntegrationTest {
 

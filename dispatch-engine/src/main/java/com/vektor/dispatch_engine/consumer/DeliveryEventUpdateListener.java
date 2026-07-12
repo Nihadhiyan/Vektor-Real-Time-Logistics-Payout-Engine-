@@ -33,11 +33,18 @@ public class DeliveryEventUpdateListener {
             deliveryEventRepository.save(Objects.requireNonNull(deliveryEventMapper.toDeliveryEvent(update)));
             log.info("Persisted event: eventId={} status={}", update.eventId(), update.status());
         } catch (DataIntegrityViolationException e) {
-            log.warn("DUPLICATE BLOCKED: Event {} was already processed. Ignoring.", update.eventId());
+            String cause = e.getMostSpecificCause().getMessage();
+            if(cause != null && cause.contains("uq_delivery_events_event_id")) {
+                log.warn("DUPLICATE BLOCKED: Event {} was already processed. Ignoring.", update.eventId());
+            } else {
+                log.error("Data integrity violation processing event [eventId={}]: {}", update.eventId(), cause);
+                throw e;
+            }
         } catch (VektorBaseException e) {
-            log.warn("Vektor rule violation processing event [eventId={}, errorCode={}]: {}", update != null ? update.eventId() : "null", e.getErrorCode(), e.getMessage());
+            log.warn("Vektor rule violation processing event [eventId={}, errorCode={}]: {}", update.eventId(), e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
-            log.error("Unexpected error processing event: ", e);
+            log.error("Unexpected error processing event [eventId={}]: ", update.eventId(), e);
+            throw e;
         } finally {
             MDC.clear();
         }

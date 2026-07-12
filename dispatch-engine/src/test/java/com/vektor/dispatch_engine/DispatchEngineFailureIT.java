@@ -23,6 +23,8 @@ import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.apache.kafka.clients.consumer.Consumer;
 import java.lang.System;
+import java.math.BigDecimal;
+
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -36,11 +38,15 @@ import org.testcontainers.kafka.KafkaContainer;
 
 import com.vektor.dispatch_engine.dto.deliveryevent.request.DeliveryEventUpdateRequest;
 import com.vektor.dispatch_engine.model.DeliveryEvent;
+import com.vektor.dispatch_engine.model.PayoutOutbox;
 import com.vektor.dispatch_engine.model.enums.DeliveryEventStatus;
+import com.vektor.dispatch_engine.model.enums.DriverPayoutStatus;
+import com.vektor.dispatch_engine.processor.OutboxRecordProcessor;
 import com.vektor.dispatch_engine.repository.DeliveryEventRepository;
 import com.vektor.dispatch_engine.repository.DriverPayoutRepository;
+import com.vektor.dispatch_engine.repository.PayoutOutboxRepository;
 
-@SpringBootTest
+@SpringBootTest(properties = { "vektor.payout.schedule-ms=2000", "vektor.outbox.sweep-ms=2000" })
 @SpringBatchTest
 @Testcontainers
 public class DispatchEngineFailureIT {
@@ -78,6 +84,14 @@ public class DispatchEngineFailureIT {
 
     @Autowired
     private Job driverPayoutJob;
+
+    @Autowired
+    private PayoutOutboxRepository outboxRepository;
+
+    @Autowired
+    private OutboxRecordProcessor recordProcessor;
+
+    
 
     // --- TEST 1: IDEMPOTENCY ---
 
@@ -122,22 +136,9 @@ public class DispatchEngineFailureIT {
         kafkaTemplate.send("delivery-updates", "R-101", poisonPill);
 
         ConsumerRecord<String, String> dltRecord = KafkaTestUtils.getSingleRecord(dltConsumer, "delivery-updates-dlt",
-                Duration.ofMillis(10000));
+                Duration.ofSeconds(10));
 
         String receivedValue = dltRecord.value();
-        if (receivedValue != null && receivedValue.startsWith("\"") && receivedValue.endsWith("\"")) {
-            receivedValue = receivedValue.substring(1, receivedValue.length() - 1);
-        }
-        try {
-            byte[] decoded = java.util.Base64.getDecoder().decode(receivedValue);
-            receivedValue = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
-            if (receivedValue.startsWith("\"") && receivedValue.endsWith("\"")) {
-                receivedValue = receivedValue.substring(1, receivedValue.length() - 1);
-                receivedValue = receivedValue.replace("\\\"", "\"");
-            }
-        } catch (IllegalArgumentException ignored) {
-            // not base64 encoded
-        }
 
         assertThat(receivedValue).isEqualTo(poisonPill);
 
@@ -181,6 +182,39 @@ public class DispatchEngineFailureIT {
                 .count();
         assertThat(payoutsAfterRun2).isEqualTo(1);
 
+    }
+
+
+    @Test
+    void shouldRecoverStuckProcessingRecord() {
+        PayoutOutbox stuck = new PayoutOutbox();
+        stuck.setDriverId("STUCK-DRIVER");
+        stuck.setTotalAmount(new BigDecimal("42.00"));
+        stuck.setStatus(DriverPayoutStatus.PROCESSING);
+        stuck.setClaimedAt(Instant.now().minus(Duration.ofMinutes(10)));
+        stuck = outboxRepository.save(stuck);
+
+        recordProcessor.processOne(stuck.getOutboxId());
+
+        PayoutOutbox recovered = outboxRepository.findById(Objects.requireNonNull(stuck.getOutboxId())).orElseThrow();
+        assertThat(recovered.getStatus()).isEqualTo(DriverPayoutStatus.PAID);
+        assertThat(recovered.getBankReferenceId()).isNotBlank();
+    }
+
+    @Test
+    void shouldNotReclaimFreshProcessingRecord() {
+        PayoutOutbox inFlight = new PayoutOutbox();
+        inFlight.setDriverId("INFLIGHT-DRIVER");
+        inFlight.setTotalAmount(new BigDecimal("10.00"));
+        inFlight.setStatus(DriverPayoutStatus.PROCESSING);
+        inFlight.setClaimedAt(Instant.now());                 // just claimed by "someone else"
+        inFlight = outboxRepository.save(inFlight);
+
+        recordProcessor.processOne(inFlight.getOutboxId());
+
+        PayoutOutbox unchanged = outboxRepository.findById(Objects.requireNonNull(inFlight.getOutboxId())).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(DriverPayoutStatus.PROCESSING);  // untouched
+        assertThat(unchanged.getBankReferenceId()).isNull();
     }
 
 }

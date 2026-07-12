@@ -46,9 +46,9 @@ try:
                 "occurredAt": datetime.now(timezone.utc).isoformat()
             }
         
-        # Publish to the 'delivery-updates' topic
-        producer.send('delivery-updates', key=driver_id, value=payload)
-        print(f"Sent: {payload}")
+            # Publish to the 'delivery-updates' topic
+            producer.send('delivery-updates', key=driver_id, value=payload)
+            print(f"Sent: {payload}")
         
         iteration += 1
         time.sleep(2) # Send a heartbeat every 2 seconds
